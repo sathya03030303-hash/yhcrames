@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.python-version
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+.next/
+.nuxt/
+.cache/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Docker
+docker-compose.override.yml
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+*.lcov
+test-results/
+
+# Build
+*.tsbuildinfo
+.nx/
+
+# Logs
+logs/
+*.log
+
+# Database
+*.sql.bak
+*.dump
+*.db
+
+# Secrets
+*.pem
+*.key
+credentials.json
+secrets.yaml
+
+# local test-pack bundle (generated from test-scenarios/)
+yhcrames-test-pack.tar.gz
+
+# runtime ops state for the log-scan loop (not tracked)
+.ops/
+
+# live E2E auth state (contains JWT) + artifacts
+.auth/
+test-results/
+playwright-report/
+
+# axe gate per-run output (regenerated each run; the committed snapshots are the baselines)
+docs/design/audit-10x/baselines/*.latest.json
+
+# fresheyes usability-review artifacts (local only)
+fresheyes-runs/
+
+# Benchmark run reports (backend/tests/benchmarks/run_benchmarks.sh)
+backend/benchmark_reports/
+
+# security scanner reports (scripts/security/run_scanners.sh)
+security-reports/

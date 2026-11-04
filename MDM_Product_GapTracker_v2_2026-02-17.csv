@@ -1,0 +1,9 @@
+Category,Semarchy Capability,Parity target meaning,MVP,Our plan,Planned release,Source URL
+Data Lifecycle,Lifecycle tables per entity,SA/SD/MD/GD + history/errors/duplicates/overrides,Yes,Implement Postgres generator; abstract DB layer,MVP,https://docs.semarchy.com/sdp/reference/dm/data-table-structures/data-tables
+Data Quality,System columns,Built-in batch/load/audit columns (B_* etc.),Yes,Standardize system columns + immutable audit,MVP,https://docs.semarchy.com/sdp/reference/dm/data-table-structures/data-table-columns
+APIs,Named Queries,Custom endpoints with parameter schema; multi-view execution,No,Endpoint builder + versioning + scopes,v1.0,https://docs.semarchy.com/sdp/reference/sdp/api/data-advanced/named-queries
+Extensibility,Plugin enrichers,Traditional + AI enrichers and classifiers,No,Plugin runtime + starter pack; AI in v1.1,v1.1,https://docs.semarchy.com/sdp/reference/dm/plugin-list
+Data Quality,Plugin validators,Email/phone validators,Yes,Built-in validators + plugin extension,MVP,https://docs.semarchy.com/sdp/reference/dm/validator-list
+Stewardship UX,Business views/hierarchies,Model-driven UI with hierarchies and graphs,Partial,Browse/search in MVP; hierarchies/graphs in v1.1,v1.1,https://www.semarchy.com/tutorials-content/business-views-hierarchies/
+Notifications,Data notifications via named queries,Change events with payload built from named query content,No,Webhook/email in v1.0; broker targets v1.1,v1.0/v1.1,https://support.semarchy.com/support/solutions/articles/43000727067-how-to-create-a-parent-based-data-notification-triggered-on-child-update
+Deployment,Warehouse-native MDM,Run mastering inside warehouse (Snowflake-like),No,Long-term roadmap; design abstractions now,v1.2+,https://semarchy.com/blog/building-certified-trusted-data-natively-in-snowflake-with-semarchy-xdm/

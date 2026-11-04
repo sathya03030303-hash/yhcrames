@@ -1,0 +1,25 @@
+Epic,Feature,User Story,Acceptance Criteria (DoD),Priority,Release,Est. Points,Dependencies,Notes
+Foundation,Tenant & config,"As an admin, I can create a tenant/workspace with isolated configs",Tenant isolation; audit; per-tenant secrets namespace,P0,MVP,8,,
+Foundation,SSO (OIDC),"As a user, I can login via OIDC and receive a session token",OIDC login; refresh; logout; session timeout,P0,MVP,13,,
+Foundation,RBAC baseline,"As an admin, I can create roles and assign permissions",Role CRUD; permission checks for UI+API,P0,MVP,13,SSO,
+Modeling,Entity designer,"As a data architect, I can define entities/attributes/relationships",Model validation; versioning; import/export,P0,MVP,13,RBAC baseline,
+Schema,Lifecycle tables,"As a platform, I generate SA/SD/MD/GD + history/error/dup tables",DDL generated; applied; reversible migrations,P0,MVP,21,Entity designer,https://docs.semarchy.com/sdp/reference/dm/data-table-structures/data-tables
+Integration,Load mgmt API,"As an integration dev, I can init/submit/cancel loads with Load IDs",Idempotent; metrics; partial failure isolation,P0,MVP,13,Lifecycle tables,
+Quality,Validation engine,"As a steward, I can configure validations and view errors",Rules run; errors stored; recycle UI,P0,MVP,21,Lifecycle tables,
+Enrichment,Built-in enrichers,"As a steward, I can run basic enrichers (text/email/phone)",Pipeline stages; deterministic outputs; logs,P0,MVP,13,Validation engine,
+Runtime UX,Browse/search UI,"As a business user, I can browse entities and child records",Configurable views/forms; search/filter/sort; perms,P0,MVP,21,Entity designer,https://www.semarchy.com/tutorials-content/business-views-hierarchies/
+Governance,Audit & history,"As compliance, I can see field-level change history",History tables; who/when; exportable,P0,MVP,21,Lifecycle tables,
+APIs,REST CRUD + search,"As an app dev, I can query and update data via REST",CRUD; filters; pagination; scopes,P0,MVP,21,RBAC baseline,
+APIs,SQL API,"As an integration dev, I can load/query using SQL patterns",Load tables + stored procs/SDK; docs,P0,MVP,13,Lifecycle tables,
+Match/Merge,Fuzzy matching,"As a steward, I can see duplicate groups with match scores","Scoring, thresholds, explainability, DU/UM writes",P1,v1.0,34,Validation+Enrichment,
+Match/Merge,Duplicate Manager,"As a steward, I can merge/split duplicates with audit",Compare; merge; split; audit; re-run consolidation,P1,v1.0,34,Fuzzy matching,
+Consolidation,Survivorship + overrides,"As an architect, I can define survivorship and overrides",Policies; provenance; override tracking,P1,v1.0,34,Duplicate Manager,
+APIs,Named Queries,"As an integration dev, I can publish named queries as custom endpoints",Param schema; versioning; view selection; scopes,P1,v1.0,21,REST CRUD + search,https://docs.semarchy.com/sdp/reference/sdp/api/data-advanced/named-queries
+Notifications,Webhook/email,"As an admin, I can notify downstream systems on changes",Triggers; retries; delivery status; DLQ,P1,v1.0,21,Named Queries,https://support.semarchy.com/support/solutions/articles/43000727067-how-to-create-a-parent-based-data-notification-triggered-on-child-update
+Workflow,Workflow builder,"As a data owner, I can build stewardship workflows with routing",Designer; tasks; SLAs; escalations; audit,P1,v1.1,34,Duplicate Manager,
+Workflow,My Tasks,"As a steward, I can see and act on assigned tasks",Task list; filters; approvals; comments,P1,v1.1,13,Workflow builder,
+Plugins,Plugin runtime,"As a platform, I can run signed plugins safely",Sandbox; limits; secrets; signing; audit,P1,v1.1,34,RBAC baseline,
+Plugins,AI enrichers,"As a steward, I can extract/augment data using GenAI plugins",Structured extraction; policy gating; redaction,P2,v1.1,34,Plugin runtime,https://docs.semarchy.com/sdp/reference/dm/plugin-list
+Notifications,Kafka/JMS targets,"As an architect, I can push notifications to Kafka/JMS",Connector auth; retries; DLQ; monitoring,P2,v1.1,21,Webhook/email,
+Ops,Job monitoring,"As an admin, I can monitor loads/certification/notifications",Dashboards; alerts; runbook links,P0,MVP,21,Foundation,
+Ops,Backup/restore + upgrades,"As an admin, I can upgrade safely with rollback",Versioned migrations; backups; rollback,P1,v1.0,21,Lifecycle tables,

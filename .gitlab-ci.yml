@@ -1,0 +1,215 @@
+# =============================================================================
+# yhcrames — GitLab CI
+# =============================================================================
+# Replaces .github/workflows/ci.yml, which never ran: every GitHub Actions run
+# since June 2026 ended in `startup_failure` at 0s.
+#
+# WHAT BLOCKS A MERGE AND WHAT DOES NOT
+#
+# The frontend jobs are real gates. They pass from a clean checkout — the
+# suite is 1,126 tests as of Oct 2026 (993 when this gate was introduced),
+# 0 failures, three clean typechecks, two successful builds — so a red
+# frontend job means someone broke something.
+#
+# The backend jobs are `allow_failure: true` ON PURPOSE. The backend suite has
+# ~104 pre-existing failures, ruff reports 4529 errors across 593 unformatted
+# files, and mypy reports 2366. Gating on those would paint every pipeline red
+# on day one, and a permanently-red pipeline is one nobody reads. They run so
+# the numbers stay visible and can be ratcheted down; tighten each to a hard
+# gate as it reaches zero.
+#
+# Note the old GitHub pipeline had `backend-test` depend on `backend-lint`, so
+# backend tests could never have run at all even if Actions had worked.
+# =============================================================================
+
+# Run pipelines for merge requests, for the default branch, and for tags.
+# Plain pushes to a feature branch no longer start a pipeline: every push used
+# to queue a full run on this one shared runner, and overlapping runs deleted
+# each other's files mid-job. Pushing new commits to a branch with an open
+# merge request re-runs it.
+#
+# The default branch and tags MUST still get a pipeline: main is what we deploy
+# from, and a merge-request-only rule would leave the main tip (and every
+# release tag) with no verification at all.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+stages:
+  - verify
+  - build
+
+variables:
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.12"
+  # pnpm resolves its own version from package.json#packageManager via corepack.
+  CACHE_VERSION: "v3"
+  # Full clone, NOT a shallow one. A shallow fetch cannot traverse the parents of
+  # this history's merge commits and dies in get_sources with "remote did not
+  # send all necessary objects" -- every job fails before it runs a single step.
+  # The repo is ~62MB; the clone is not the bottleneck worth optimising.
+  GIT_DEPTH: "0"
+
+# --- Frontend -----------------------------------------------------------------
+
+.node:
+  image: node:20-bookworm-slim
+  before_script:
+    - corepack enable
+    # Give pnpm a store that is per-job and on the SAME filesystem as
+    # node_modules, and let it hard-link as usual.
+    #
+    # Its default here is /builds/.pnpm-store, which persists between jobs and
+    # is shared by every project on this runner. That store had missing files,
+    # so installs reported success ("Packages: +656") while silently omitting
+    # content -- typescript 5.9.3 without lib.dom.d.ts, so tsc failed with
+    # "Cannot find global type 'Array'". Forcing copies surfaced it honestly as
+    # ERR_PNPM_ENOENT against the store path.
+    #
+    # /tmp did not work either: it is a small tmpfs here, so the store could not
+    # be written and the same ENOENT appeared against /tmp/pnpm-store.
+    #
+    # $CI_PROJECT_DIR is on the roomy /builds volume (26G free) and GitLab
+    # cleans it between jobs, so the store is fresh every run and hard-links
+    # work without crossing a filesystem boundary.
+    # Unique per JOB, not just per project dir. Concurrent jobs and reused build
+    # directories can otherwise share a half-populated store, which is how a
+    # package ends up present-but-incomplete (typescript without lib.dom.d.ts,
+    # vitest without suppress-warnings.cjs). A job-scoped path cannot be reused.
+    - pnpm config set store-dir "$CI_PROJECT_DIR/.pnpm-store-$CI_JOB_ID"
+    - pnpm install --frozen-lockfile
+
+frontend:typecheck:
+  extends: .node
+  stage: verify
+  script:
+    # `pnpm exec`, never `npx`. On this repo `npx tsc` resolves to an unrelated
+    # placeholder package that prints "This is not the tsc command you are
+    # looking for" and EXITS 0 — so the GitHub type checks were no-ops that
+    # could never have failed.
+    - pnpm exec tsc -p frontend/shared/tsconfig.json --noEmit
+    - pnpm exec tsc -p frontend/studio/tsconfig.json --noEmit
+    - pnpm exec tsc -p frontend/runtime/tsconfig.json --noEmit
+
+# The gate: the plain suite. Verified from a clean checkout at 993 tests,
+# 0 failures, stable across repeated runs. A failure here is real.
+frontend:test:
+  extends: .node
+  stage: verify
+  script:
+    # --testTimeout overrides vitest.config.ts's 20000ms, which was tuned for a
+    # developer machine. This runner is roughly 4x slower: the heaviest tests
+    # measured 21.6s and 23.1s here against 5-7s locally. That is throughput,
+    # not breakage, so CI gets a ceiling that matches its own speed.
+    #
+    # --maxWorkers=2: with the default worker count the runner ran out of memory
+    # and killed vitest workers ("Worker exited unexpectedly"), failing the job
+    # even though every test passed (pipeline 25719, 1013/1013 green).
+    - pnpm exec vitest run --maxWorkers=2 --testTimeout=90000 --hookTimeout=90000 --reporter=default --reporter=junit --outputFile.junit=junit-frontend.xml
+  artifacts:
+    when: always
+    expire_in: 1 week
+    reports:
+      junit: junit-frontend.xml
+
+# Coverage runs SEPARATELY and does not gate, because v8 instrumentation roughly
+# doubles the suite's wall-clock (110s -> 243s measured) and pushes the heaviest
+# tests back over their timeouts: the same clean tree that passes 993/0 above
+# reports 5 failures under --coverage, all of them timeouts, none of them real.
+#
+# Raising the timeouts again to accommodate instrumentation would just move the
+# line. Keeping the gate on the fast, stable run means red means broken; the
+# coverage number is still published on every pipeline.
+frontend:coverage:
+  extends: .node
+  stage: verify
+  allow_failure: true
+  script:
+    - pnpm exec vitest run --coverage --maxWorkers=2 --testTimeout=120000 --hookTimeout=120000 --reporter=default
+  coverage: '/All files[^|]*\|[^|]*\s+([\d.]+)/'
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - coverage/
+
+frontend:build:
+  extends: .node
+  stage: build
+  needs: ["frontend:typecheck", "frontend:test"]
+  script:
+    - pnpm build:studio
+    - pnpm build:runtime
+  # vite writes to the outDir in each app's vite.config.ts (../../dist/frontend/<app>),
+  # the same path the Dockerfile.frontend(.prod) COPY steps read. frontend/*/dist/
+  # never exists, so the old paths uploaded nothing.
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - dist/frontend/studio/
+      - dist/frontend/runtime/
+
+# --- Backend ------------------------------------------------------------------
+
+.python:
+  image: python:3.12-bookworm
+  variables:
+    POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  before_script:
+    - pip install --quiet "poetry==1.8.4"
+    - cd backend
+    - poetry install --no-interaction --no-ansi
+  cache:
+    key:
+      files:
+        - backend/poetry.lock
+      prefix: "$CACHE_VERSION-poetry"
+    paths:
+      - backend/.venv
+    policy: pull-push
+
+backend:lint:
+  extends: .python
+  stage: verify
+  allow_failure: true # see header: 4529 ruff + 2366 mypy pre-existing
+  script:
+    - poetry run ruff check app/ --statistics || true
+    - poetry run ruff format app/ --check || true
+    - poetry run mypy app/ --ignore-missing-imports || true
+    # Report the counts rather than the wall of text, so the trend is legible.
+    - |
+      echo "--- baseline counts (lower is better) ---"
+      echo "ruff:  $(poetry run ruff check app/ 2>/dev/null | tail -1)"
+      echo "mypy:  $(poetry run mypy app/ --ignore-missing-imports 2>/dev/null | tail -1)"
+
+backend:test:
+  extends: .python
+  stage: verify
+  allow_failure: true # see header: ~104 pre-existing failures
+  services:
+    - name: postgres:16-bookworm
+      alias: postgres
+    - name: redis:7-bookworm
+      alias: redis
+  variables:
+    POSTGRES_USER: yhcrames_test
+    POSTGRES_PASSWORD: yhcrames_test_pw
+    POSTGRES_DB: yhcrames_test
+    POSTGRES_HOST_AUTH_METHOD: trust
+    APP_ENV: testing
+    SECRET_KEY: ci-test-secret-key-do-not-use-in-production
+    DATABASE_URL: postgresql+asyncpg://yhcrames_test:yhcrames_test_pw@postgres:5432/yhcrames_test
+    REDIS_URL: redis://redis:6379/0
+  script:
+    # `poetry run alembic`, never `python -m alembic`: the local backend/alembic/
+    # directory shadows the installed package and the module form fails with
+    # "No module named alembic.__main__".
+    - poetry run alembic upgrade head
+    - poetry run python -m pytest tests/ -q --junitxml=junit-backend.xml
+  artifacts:
+    when: always
+    expire_in: 1 week
+    reports:
+      junit: junit-backend.xml

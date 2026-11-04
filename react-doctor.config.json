@@ -1,0 +1,17 @@
+{
+  "ignore": {
+    "rules": [
+      "react-doctor/design-no-vague-button-label",
+      "react-doctor/design-no-em-dash-in-jsx-text",
+      "react-doctor/design-no-three-period-ellipsis",
+      "react-doctor/no-event-handler",
+      "react-doctor/no-inline-exhaustive-style",
+      "react-doctor/no-render-in-render",
+      "react-doctor/no-array-index-key",
+      "react-doctor/no-array-index-as-key",
+      "react-doctor/prefer-useReducer",
+      "react-doctor/no-giant-component",
+      "react-doctor/query-mutation-missing-invalidation"
+    ]
+  }
+}

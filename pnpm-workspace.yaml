@@ -1,0 +1,8 @@
+packages:
+  - "frontend/*"
+  - "packages/*"
+  - "sdks/*"
+  - "sdks/plugin-*"
+
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
